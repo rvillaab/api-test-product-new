@@ -1,63 +1,52 @@
 package service
 
 import (
+	data "api-test-product-new/data"
+	ent "api-test-product-new/entity"
 	"errors"
 	"fmt"
 )
 
 type ProductService interface {
-	CreateProduct(Product) (Product, error)
-	GetAllProducts() ([]Product, error)
+	CreateProduct(ent.Product) (ent.Product, error)
+	GetAllProducts() ([]ent.Product, error)
 	Count() int
-	UpdateProduct(string, Product) (interface{}, error)
+	UpdateProduct(string, ent.Product) (interface{}, error)
 	DeleteProduct(string) (string, error)
 }
 
 // stringService is a concrete implementation of StringService
 type ProductServiceImpl struct{}
 
-type Product struct {
-	ID    string  `json:"id"`
-	Code  string  `json:"code"`
-	Name  string  `json:"name"`
-	Price float64 `json:"price"`
+func NewService() ProductService {
+	return ProductServiceImpl{}
 }
 
-type allProducts []Product
+func (prod ProductServiceImpl) CreateProduct(product ent.Product) (ent.Product, error) {
 
-var products = allProducts{
-	{
-		ID:    "1",
-		Code:  "HPOT",
-		Name:  "Harry Potter Book 1",
-		Price: 15.0,
-	},
-}
-
-func (ProductServiceImpl) CreateProduct(product Product) (Product, error) {
-
-	products = append(products, product)
+	data.Products = append(data.Products, product)
 	return product, nil
 }
 
 func (ProductServiceImpl) Count() int {
-	return len(products)
+	return len(data.Products)
 
 }
 
-func (ProductServiceImpl) GetAllProducts() ([]Product, error) {
-	return products, nil
+func (prod ProductServiceImpl) GetAllProducts() ([]ent.Product, error) {
+
+	return data.Products, nil
 }
 
-func (ProductServiceImpl) UpdateProduct(productID string, updatedProduct Product) (interface{}, error) {
+func (ProductServiceImpl) UpdateProduct(productID string, updatedProduct ent.Product) (interface{}, error) {
 
-	for i, singleProduct := range products {
+	for i, singleProduct := range data.Products {
 		if singleProduct.ID == productID {
 			singleProduct.ID = updatedProduct.ID
 			singleProduct.Code = updatedProduct.Code
 			singleProduct.Name = updatedProduct.Name
 			singleProduct.Price = updatedProduct.Price
-			products = append(products[:i], singleProduct)
+			data.Products = append(data.Products[:i], singleProduct)
 			return updatedProduct, nil
 		}
 	}
@@ -68,9 +57,9 @@ func (ProductServiceImpl) UpdateProduct(productID string, updatedProduct Product
 
 func (ProductServiceImpl) DeleteProduct(productID string) (string, error) {
 
-	for i, singleProduct := range products {
+	for i, singleProduct := range data.Products {
 		if singleProduct.ID == productID {
-			products = append(products[:i], products[i+1:]...)
+			data.Products = append(data.Products[:i], data.Products[i+1:]...)
 			return fmt.Sprintf("The product with ID %v has been deleted successfully", productID), nil
 		}
 	}

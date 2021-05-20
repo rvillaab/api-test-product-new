@@ -1,57 +1,49 @@
 package main
 
 import (
+	"api-test-product-new/endpoint"
+	"api-test-product-new/server"
 	"api-test-product-new/service"
-	"api-test-product-new/transport"
+	"context"
+	"flag"
+	"fmt"
 	"log"
 	"net/http"
-
-	httptransport "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
-
-	router := mux.NewRouter().StrictSlash(true)
-
-	svc := service.ProductServiceImpl{}
-
-	uppercaseHandler := httptransport.NewServer(
-		transport.MakeCreateProductEndpoint(svc),
-		transport.DecodeProductCreateRequest,
-		transport.EncodeResponse,
+	var (
+		httpAddr = flag.String("http", ":8080", "http listen address")
 	)
+	flag.Parse()
+	ctx := context.Background()
+	srv := service.NewService()
+	errChan := make(chan error)
 
-	countHandler := httptransport.NewServer(
-		transport.MakeCountEndpoint(svc),
-		transport.DecodeCountRequest,
-		transport.EncodeResponse,
-	)
+	go func() {
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+		errChan <- fmt.Errorf("%s", <-c)
+	}()
 
-	getAllHandler := httptransport.NewServer(
-		transport.MakeGetallProductsEndpoint(svc),
-		transport.DecodeCountRequest,
-		transport.EncodeResponse,
-	)
+	// mapping endpoints
+	endpoints := endpoint.Endpoints{
+		CountEndpoint:          endpoint.MakeCountEndpoint(srv),
+		GetAllProductsEndpoint: endpoint.MakeGetallProductsEndpoint(srv),
+		CreateProductEndpoint:  endpoint.MakeCreateProductEndpoint(srv),
+		UpdateProductEndpoint:  endpoint.MakeUpdateProductEndpoint(srv),
+		DeleteProductendpoint:  endpoint.MakeDeleteroductEndpoint(srv),
+	}
 
-	updateHandler := httptransport.NewServer(
-		transport.MakeUpdateProductEndpoint(svc),
-		transport.DecodeUpdateRequest,
-		transport.EncodeResponse,
-	)
+	// HTTP transport
+	go func() {
+		log.Println("service is listening on port:", *httpAddr)
+		handler := server.NewHTTPServer(ctx, endpoints)
+		errChan <- http.ListenAndServe(*httpAddr, handler)
+	}()
 
-	deleteHandler := httptransport.NewServer(
-		transport.MakeDeleteroductEndpoint(svc),
-		transport.DecodeDeleteRequest,
-		transport.EncodeResponse,
-	)
-
-	router.PathPrefix("/product").Handler(uppercaseHandler).Methods("POST")
-	router.PathPrefix("/products/{id}").Handler(countHandler).Methods("GET")
-	router.PathPrefix("/products/count").Handler(countHandler).Methods("GET")
-	router.PathPrefix("/products").Handler(getAllHandler).Methods("GET")
-	router.PathPrefix("/products/{id}").Handler(updateHandler).Methods("PUT")
-	router.PathPrefix("/products/{id}").Handler(deleteHandler).Methods("DELETE")
-	log.Fatal(http.ListenAndServe(":8080", router))
-
+	log.Fatalln(<-errChan)
 }
